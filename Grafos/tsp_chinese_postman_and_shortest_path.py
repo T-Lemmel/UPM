@@ -917,7 +917,7 @@ EOF
 """
 
 # Read the graph from the TSP data
-G = read_tsp_file(file_content_pcb442) ## change here to read the desired file
+G = read_tsp_file(file_content_kroA100) ## change here to read the desired file
 
 # 1. TSP (Traveling Salesman Problem) using approximation
 # TSP aims to find the shortest possible route that visits each node exactly once and returns to the starting node.
