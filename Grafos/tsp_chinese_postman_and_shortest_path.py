@@ -917,8 +917,7 @@ EOF
 """
 
 # Read the graph from the TSP data
-## G = read_tsp_file(file_content_tsb)
-G = read_tsp_file(file_content_pcb442)
+G = read_tsp_file(file_content_pcb442) ## change here to read the desired file
 
 # 1. TSP (Traveling Salesman Problem) using approximation
 # TSP aims to find the shortest possible route that visits each node exactly once and returns to the starting node.
@@ -936,9 +935,9 @@ eulerian_graph = nx.eulerize(G)
 cpp_circuit = list(nx.eulerian_circuit(eulerian_graph, source=1))
 
 # 3. Shortest Path using A* algorithm
-# A* algorithm finds the shortest path from node 1 to node 6.
+# A* algorithm finds the shortest path from node 1 to last node.
 # It uses a heuristic to guide the search process, making it more efficient than Dijkstra in certain cases.
-shortest_path = nx.astar_path(G, source=1, target=6, heuristic=lambda a, b: abs(a - b), weight='weight')
+shortest_path = nx.astar_path(G, source=1, target=max(G.nodes), heuristic=lambda a, b: abs(a - b), weight='weight')
 
 # Display results with explanations
 def display_results(tsp_path, cpp_circuit, shortest_path):
@@ -956,7 +955,7 @@ def display_results(tsp_path, cpp_circuit, shortest_path):
     print(f"   Total Cost: {cpp_total_cost}")
 
     # Shortest Path (A*) result
-    print("\n3. Shortest Path from Node 1 to Node 6 (using A*):")
+    print("\n3. Shortest Path from Node 1 to last Node (using A*):")
     print(f"   Path: {shortest_path}")
     print(f"   Total Cost: {sum(G[shortest_path[i]][shortest_path[i+1]]['weight'] for i in range(len(shortest_path)-1))}")
 

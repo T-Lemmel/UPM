@@ -24220,3 +24220,5 @@ mst = nx.minimum_spanning_tree(G)
 print("Edges of the Minimum Spanning Tree:")
 for edge in mst.edges(data=True):
     print(edge)
+
+print("total weight:", sum([edge[2]['weight'] for edge in mst.edges(data=True)]))
