@@ -200,6 +200,7 @@ def main(number_of_random_moves, max_depth):
             print(f"Move {i + 1}: {move}")
             eval(f"b.{move}") # Execute the move
             moves_list.append(move)
+        b.plot()
 
         # Run the path in unsolved-to-solved direction
         moves_list_reversed = moves_list[::-1]
