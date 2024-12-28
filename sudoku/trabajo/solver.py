@@ -1,267 +1,191 @@
 import rub_cube as rb
 import networkx as nx
-from collections import deque
 import random
-import matplotlib.pyplot as plt
 import heapq
 
 class RubiksCube:
     def __init__(self):
-        # Define the solved cube: each face is a 3x3 matrix with a uniform color
-        self.faces = {
-            '0': [
-            [0, 0, 0], 
-            [0, 0, 0], 
-            [0, 0, 0]],  # Face 0
-
-            '1': [
-            [1, 1, 1], 
-            [1, 1, 1], 
-            [1, 1, 1]],  # Face 1
-
-            '2': [
-            [2, 2, 2], 
-            [2, 2, 2], 
-            [2, 2, 2]],  # Face 2
-            
-            '3': [
-            [3, 3, 3], 
-            [3, 3, 3], 
-            [3, 3, 3]],  # Face 3
-            
-            '4': [
-            [4, 4, 4], 
-            [4, 4, 4], 
-            [4, 4, 4]],  # Face 4
-            
-            '5': [
-            [5, 5, 5], 
-            [5, 5, 5], 
-            [5, 5, 5]]   # Face 5
-        }
+        """Initialize the Rubik's cube with the solved state, it is a list of 54 integers."""
+        self.state = [
+            *[0] * 9,  # Face 0
+            *[1] * 9,  # Face 1
+            *[2] * 9,  # Face 2
+            *[3] * 9,  # Face 3
+            *[4] * 9,  # Face 4
+            *[5] * 9   # Face 5
+        ]
 
     def __lt__(self, other):
-        """Define comparison based on the f_cost (g_cost + heuristic)."""
-        if not isinstance(other, RubiksCube):
-            return NotImplemented
-        # Compare by the f_cost, using the serialized state as a unique representation.
+        """Define comparison based on the f_cost (g_cost + heuristic), needed to use heapq."""
         return self.f_cost < other.f_cost
 
     def rotate_x(self, n, is_positive):
-        
-        # Extract face 4 row 2-n, face 0 col n, face 5 row n, and face 2 col 2-n
-        face_4_row_2_n = self.faces['4'][2 - n][:]
-        face_0_col_n = [self.faces['0'][i][n] for i in range(3)]
-        face_5_row_n = self.faces['5'][n][:]
-        face_2_col_2_n = [self.faces['2'][i][2-n] for i in range(3)]
+        """Rotate the cube around the X axis by 90 degrees in the positive or negative direction."""
+        # Indices of relevant pieces for an X rotation (found analyzing the geometry of the cube)
+        rows = [
+            [45 + 3 * n, 46 + 3 * n, 47 + 3 * n],  # Face 4 row 2-n
+            [n, 3 + n, 6 + n],                    # Face 0 col n
+            [51 - 3 * n, 52 - 3 * n, 53 - 3 * n], # Face 5 row n
+            [29 - n, 26 - n, 23 - n]              # Face 2 col 2-n
+        ]
 
-        if is_positive :
-            # Rotate the rows and columns
-            for i in range(3):
-                self.faces['4'][2 - n][i] = face_2_col_2_n[i]
-                self.faces['0'][i][2-n] = face_4_row_2_n[i]
-                self.faces['5'][n][i] = face_0_col_n[i]
-                self.faces['2'][i][n] = face_5_row_n[i]
+        if is_positive:
+            self._rotate_pieces(rows, [1, 2, 3, 0])
         else:
-            # Rotate the rows and columns
-            for i in range(3):
-                self.faces['4'][2 - n][i] = face_0_col_n[i]
-                self.faces['0'][i][2-n] = face_5_row_n[i]
-                self.faces['5'][n][i] = face_2_col_2_n[i]
-                self.faces['2'][i][n] = face_4_row_2_n[i]
-        
+            self._rotate_pieces(rows, [3, 0, 1, 2])
 
     def rotate_y(self, n, is_positive):
-
-        # Extract face 4 col 2-n, face 1 row 2-n, face 5 col 2-n, and face 3 col n
-        face_4_col_2_n = [self.faces['4'][i][2 - n] for i in range(3)]
-        face_1_col_2_n = [self.faces['1'][i][2 - n] for i in range(3)]
-        face_5_col_2_n = [self.faces['5'][i][2 - n] for i in range(3)]
-        face_3_col_n = [self.faces['3'][i][n] for i in range(3)]
+        """Rotate the cube around the Y axis by 90 degrees in the positive or negative direction."""
+        # Indices of relevant pieces for a Y rotation (found analyzing the geometry of the cube)
+        cols = [
+            [36 + n, 39 + n, 42 + n],  # Face 4 col 2-n
+            [9 + n, 12 + n, 15 + n],   # Face 1 col 2-n
+            [36 + 6 - n, 39 + 6 - n, 42 + 6 - n], # Face 5 col 2-n
+            [27 + n, 30 + n, 33 + n]   # Face 3 col n
+        ]
 
         if is_positive:
-            # Rotate the rows and columns
-            for i in range(3):
-                self.faces['4'][i][2 - n] = face_3_col_n[i]
-                self.faces['1'][i][2 - n] = face_4_col_2_n[i]
-                self.faces['5'][i][2 - n] = face_1_col_2_n[i]
-                self.faces['3'][i][n] = face_5_col_2_n[i]
+            self._rotate_pieces(cols, [3, 0, 1, 2])
         else:
-            # Rotate the rows and columns
-            for i in range(3):
-                self.faces['4'][i][2 - n] = face_1_col_2_n[i]
-                self.faces['1'][i][2 - n] = face_5_col_2_n[i]
-                self.faces['5'][i][2 - n] = face_3_col_n[i]
-                self.faces['3'][i][n] = face_4_col_2_n[i]
-        
+            self._rotate_pieces(cols, [1, 2, 3, 0])
 
     def rotate_z(self, n, is_positive):
-        # Extract face 3 row n, face 0 row n, face 1 row n, and face 2 row n
-        face_3_row_n = self.faces['3'][n][:]
-        face_0_row_n = self.faces['0'][n][:]
-        face_1_row_n = self.faces['1'][n][:]
-        face_2_row_n = self.faces['2'][n][:]
-        
-        if is_positive:
-            # Rotate the rows
-            self.faces['3'][n] = face_2_row_n
-            self.faces['0'][n] = face_3_row_n
-            self.faces['1'][n] = face_0_row_n
-            self.faces['2'][n] = face_1_row_n
-        else:
-            # Rotate the rows
-            self.faces['3'][n] = face_0_row_n
-            self.faces['0'][n] = face_1_row_n
-            self.faces['1'][n] = face_2_row_n
-            self.faces['2'][n] = face_3_row_n
-        
+        """Rotate the cube around the Z axis by 90 degrees in the positive or negative direction."""
+        # Indices of relevant pieces for a Z rotation (found analyzing the geometry of the cube)
+        rows = [
+            [27 + 3 * n, 28 + 3 * n, 29 + 3 * n],  # Face 3 row n
+            [n, 1 + n, 2 + n],                    # Face 0 row n
+            [9 + n, 10 + n, 11 + n],              # Face 1 row n
+            [18 + n, 19 + n, 20 + n]              # Face 2 row n
+        ]
 
-def serialize_cube(cube):
-    return "".join(
-        "".join("".join(map(str, row)) for row in cube.faces[face])
-        for face in sorted(cube.faces.keys())
-    )
+        if is_positive:
+            self._rotate_pieces(rows, [3, 0, 1, 2])
+        else:
+            self._rotate_pieces(rows, [1, 2, 3, 0])
+
+    def _rotate_pieces(self, groups, order):
+        """Rotate pieces in the specified order for the given groups, e.g. [1, 2, 3, 0] becomes [2, 3, 0, 1] or [0, 1, 2, 3]."""
+        temp = [self.state[idx] for idx in groups[order[0]]]
+        for i in range(3):
+            for j in range(3):
+                self.state[groups[order[i]][j]] = self.state[groups[order[i + 1]][j]]
+        for j in range(3):
+            self.state[groups[order[-1]][j]] = temp[j]
 
 
 def heuristic(current_state, goal_state):
-    # number of misplaced tiles
-    return sum(1 for c, g in zip(current_state, goal_state) if c != g)
+    """Calculate the number of misplaced pieces between the current and goal states."""
+    return sum(1 for i in range(54) if current_state[i] != goal_state[i])
 
 def expand_cube_states_A_star(start_cube, goal_cube, max_depth):
     graph = nx.DiGraph()
     visited = set()
-
-    # Priority queue (using heapq for a min-heap)
     queue = []
+    iter_count = 0
+    start_state = start_cube.state
+    goal_state = goal_cube.state
 
-    start_state = serialize_cube(start_cube)
-    goal_state = serialize_cube(goal_cube)
+    heapq.heappush(queue, (heuristic(start_state, goal_state), 0, start_state)) # f_cost, g_cost, state
 
-    # Initially, add the start state to the queue (f_cost, g_cost, state, cube)
-    heapq.heappush(queue, (heuristic(start_state, goal_state) + 0, 0, start_state, start_cube))  # (f_cost, g_cost, state, cube)
-
-    iteration_count = 0
-
-    # Mapping move functions and their descriptions
     moves = [
         (lambda c: c.rotate_x(0, True), "rotate_90('x',0,1)"),
         (lambda c: c.rotate_x(0, False), "rotate_90('x',0,-1)"),
-        (lambda c: c.rotate_x(1, True), "rotate_90('x',1,1)"),
-        (lambda c: c.rotate_x(1, False), "rotate_90('x',1,-1)"),
-        (lambda c: c.rotate_x(2, True), "rotate_90('x',2,1)"),
-        (lambda c: c.rotate_x(2, False), "rotate_90('x',2,-1)"),
         (lambda c: c.rotate_y(0, True), "rotate_90('y',0,1)"),
         (lambda c: c.rotate_y(0, False), "rotate_90('y',0,-1)"),
-        (lambda c: c.rotate_y(1, True), "rotate_90('y',1,1)"),
-        (lambda c: c.rotate_y(1, False), "rotate_90('y',1,-1)"),
-        (lambda c: c.rotate_y(2, True), "rotate_90('y',2,1)"),
-        (lambda c: c.rotate_y(2, False), "rotate_90('y',2,-1)"),
         (lambda c: c.rotate_z(0, True), "rotate_90('z',0,1)"),
         (lambda c: c.rotate_z(0, False), "rotate_90('z',0,-1)"),
+        (lambda c: c.rotate_x(1, True), "rotate_90('x',1,1)"),
+        (lambda c: c.rotate_x(1, False), "rotate_90('x',1,-1)"),
+        (lambda c: c.rotate_y(1, True), "rotate_90('y',1,1)"),
+        (lambda c: c.rotate_y(1, False), "rotate_90('y',1,-1)"),
         (lambda c: c.rotate_z(1, True), "rotate_90('z',1,1)"),
         (lambda c: c.rotate_z(1, False), "rotate_90('z',1,-1)"),
+        (lambda c: c.rotate_x(2, True), "rotate_90('x',2,1)"),
+        (lambda c: c.rotate_x(2, False), "rotate_90('x',2,-1)"),
+        (lambda c: c.rotate_y(2, True), "rotate_90('y',2,1)"),
+        (lambda c: c.rotate_y(2, False), "rotate_90('y',2,-1)"),
         (lambda c: c.rotate_z(2, True), "rotate_90('z',2,1)"),
-        (lambda c: c.rotate_z(2, False), "rotate_90('z',2,-1)"),
+        (lambda c: c.rotate_z(2, False), "rotate_90('z',2,-1)")
     ]
-    
+
     while queue:
-        iteration_count += 1
-        # Pop the item with the lowest f_cost (g_cost + h_cost)
-        f_cost, g_cost, current_state, current_cube = heapq.heappop(queue)
-
-        if current_state in visited:
+        iter_count += 1
+        print(f"Iteration {iter_count})")
+        f_cost, g_cost, current_state = queue.pop(0) 
+        if tuple(current_state) in visited: # Skip if already visited
             continue
-        visited.add(current_state)
+        visited.add(tuple(current_state))
+        graph.add_node(tuple(current_state))
 
-        graph.add_node(current_state)
+        if current_state == goal_state: # Goal state found
+            print("Goal state found at depth", g_cost)
+            break
 
-        # Check if we've reached the goal state
-        if current_state == goal_state:
-            print(f"Goal state reached at depth {g_cost}")
-            print("iteration count: ", iteration_count)
-            graph.add_node(goal_state)  # Add the goal state to the graph
-            break  # Stop after adding the goal state to the graph
-
-        if g_cost >= max_depth:
+        if g_cost >= max_depth: # Skip if max depth reached
             continue
 
-        # Generate the next states
-        next_states = []
-        for move, move_description in moves:
+        for move, move_desc in moves:
             new_cube = RubiksCube()
-            new_cube.faces = {face: [row[:] for row in current_cube.faces[face]] for face in current_cube.faces}
-            move(new_cube)  # Apply the move to the new cube
-
-            new_state = serialize_cube(new_cube)
-            new_g_cost = g_cost + 1  # Increment the path length
-            new_cube.f_cost = new_g_cost + heuristic(new_state, goal_state)  # f_cost = g_cost + h_cost
-            next_states.append((new_g_cost + heuristic(new_state, goal_state), new_g_cost, new_state, new_cube))  # f_cost = g_cost + h_cost
-
-            # Add the edges to the graph
-            graph.add_edge(current_state, new_state, move=move_description)
-
-        # Add all next states to the priority queue
-        for next_state in next_states:
-            heapq.heappush(queue, next_state)
+            new_cube.state = current_state.copy()
+            move(new_cube)
+            new_state = new_cube.state
+        
+            if tuple(new_state) not in visited:
+                new_g_cost = g_cost + 1
+                new_f_cost = new_g_cost + heuristic(new_state, goal_state)
+                heapq.heappush(queue, (new_f_cost, new_g_cost, new_state)) # f_cost, g_cost, state
+                graph.add_edge(tuple(current_state), tuple(new_state), move=move_desc)
 
     return graph
 
-# Initialize the cube
-solved_cube = RubiksCube()
+def main(number_of_random_moves, max_depth):
+    # Initialize the cubes
+    solved_cube = RubiksCube()
+    start_cube = RubiksCube()
 
-# Define the start state with random moves
-start_cube = RubiksCube()
+    # Randomize the start state
+    for _ in range(number_of_random_moves):
+        move = random.choice([start_cube.rotate_x, 
+                    start_cube.rotate_y, 
+                    start_cube.rotate_z])
+        move(random.randint(0, 2), random.choice([True, False]))
 
-# Apply random moves to the start state
-for _ in range(6):
-    random_move = random.choice([
-        start_cube.rotate_x,
-        start_cube.rotate_y,
-        start_cube.rotate_z
-    ])
-    random_move(random.randint(0, 2), random.choice([True, False]))
+    print(f"Start state: {start_cube.state}")
 
+    state_graph = expand_cube_states_A_star(solved_cube, start_cube, max_depth)
+    print(f"Number of nodes: {state_graph.number_of_nodes()}")
+    print(f"Number of edges: {state_graph.number_of_edges()}")
 
-# # Display the start state
-print(f"Start state: {serialize_cube(start_cube)}")
-# # Generate the graph of states
+    # Check if the path exists
+    try:
+        path = nx.shortest_path(state_graph, tuple(solved_cube.state), tuple(start_cube.state))
+        print(f"Shortest path from solved to start: {path}")
 
-print("expanding from the solved state to the start state using A* with number of misplaces tiles heuristic")
-state_graph = expand_cube_states_A_star(solved_cube, start_cube, max_depth=6)
+        # Run the path in solved-to-unsolved direction first (to have the start state stored in b and then run the moves in reverse to display the path)
+        b = rb.RubCube()
+        moves_list = []
+        for i in range(len(path) - 1):
+            move = state_graph.edges[path[i], path[i + 1]]['move'] # 'move' describes the movement along the edge
+            print(f"Move {i + 1}: {move}")
+            eval(f"b.{move}") # Execute the move
+            moves_list.append(move)
 
-# # Display basic graph information
-print(f"Number of nodes (states): {state_graph.number_of_nodes()}")
-print(f"Number of edges (moves): {state_graph.number_of_edges()}")
+        # Run the path in unsolved-to-solved direction
+        moves_list_reversed = moves_list[::-1]
+        for move in moves_list_reversed:
+            if move.endswith("1)"):
+                inverse_move = move.replace("1)", "-1)") # Invert the direction of the move eg rotate_90('x',0,1) -> rotate_90('x',0,-1)
 
-# Find the shortest path between the random state and the solved state
-solved_state = serialize_cube(solved_cube)
+            print(f"Inverse move: {inverse_move}")
+            eval(f"b.{inverse_move}")
+            b.plot()
 
-# Check if the path exists
-try:
-    path = nx.shortest_path(state_graph, solved_state,serialize_cube(start_cube))
-    print(f"Shortest path from start to solved state: {path}")
+    except nx.NetworkXNoPath:
+        print("No path found from start to solved state.")
 
-# Run the path in solved - Unsolved path first to have a starting point for displaying the moves
-    b=rb.RubCube(3)
-    moves_list = []
-    for i in range(len(path)-1):
-        move = state_graph.edges[path[i], path[i+1]]["move"]
-        print(f"Move {i+1}: {move}")
-        eval(f"b.{move}")
-        moves_list.append(move)
-    b.plot()
-
-    # Run the path in Unsolved - Solved path
-    moves_list_reversed = moves_list[::-1]
-    for i in range(len(moves_list_reversed)):
-        move = moves_list_reversed[i]
-        if move[-2:] == "1)":
-            move = move[:-2] + "-1)"
-        else:
-            move = move[:-3] + "1)"
-        print(move)
-        eval(f"b.{move}")
-        b.plot()
-
-except nx.NetworkXNoPath:
-    print(f"No path found from {start_cube} to the solved state.")
+if __name__ == "__main__":
+    """Run the main function with the number of random moves and max depth desired."""
+    number_of_random_moves = 5
+    max_depth = 5
+    main(number_of_random_moves, max_depth)
