@@ -75,14 +75,46 @@ class RubiksCube:
 
 
 def heuristic(current_state, goal_state):
-    """Calculate the number of misplaced pieces between the current and goal states."""
-    return sum(1 for i in range(54) if current_state[i] != goal_state[i])
+    """Optimistic heuristic for the Rubik's cube-like problem.
+    The heuristic calculates the minimum number of moves to place each piece in its target face using the sum of all the manhattan distance for the misplaced tiles.
 
+    If the piece is in the correct face but wrong position, 1 move.
+    If the piece is in the opposite face, 2 moves.
+    """
+    manhattan_distance = 0
+    face_opposites = {0: 2, 1: 3, 2: 0, 3: 1, 4: 5, 5: 4}  # Mapping of opposite faces
+
+    # Step 1: Identify the target faces for each piece in the goal state
+    goal_face_positions = {i: [] for i in range(6)}  # List of positions for each face in the goal state
+    for i in range(6):  # For each face (0-5)
+        for j in range(9):  # For each position on the face (9 positions)
+            value = goal_state[j + i * 9]
+            goal_face_positions[value].append(i * 9 + j)  # Store target positions by face
+    # Step 2: Calculate the Manhattan distance
+    for i in range(6):  # Loop through each face
+        for j in range(9):  # Loop through each position on the face
+            # Get the current piece's value in the current state
+            current_value = current_state[j + i * 9]
+            
+            if current_value != goal_state[j + i * 9]:  # The piece is misplaced
+                target_faces = goal_face_positions[current_value]  # Get the target faces for this value
+                
+                # Find the closest target face for the current piece
+                closest_target_face = min(target_faces, key=lambda x: abs(x // 9 - i))  # Min distance on the faces
+
+                # Check if the piece is on the opposite face or adjacent face
+                if closest_target_face // 9 == face_opposites[i]:
+                    manhattan_distance += 2  # Piece is on the opposite face
+                else:
+                    manhattan_distance += 1  # Piece is on an adjacent face
+
+    return manhattan_distance
+
+            
 def expand_cube_states_A_star(start_cube, goal_cube, max_depth):
     graph = nx.DiGraph()
     visited = set()
     queue = []
-    iter_count = 0
     start_state = start_cube.state
     goal_state = goal_cube.state
 
@@ -110,9 +142,7 @@ def expand_cube_states_A_star(start_cube, goal_cube, max_depth):
     ]
 
     while queue:
-        iter_count += 1
-        print(f"Iteration {iter_count})")
-        f_cost, g_cost, current_state = queue.pop(0) 
+        f_cost, g_cost, current_state = heapq.heappop(queue) 
         if tuple(current_state) in visited: # Skip if already visited
             continue
         visited.add(tuple(current_state))
@@ -142,7 +172,7 @@ def expand_cube_states_A_star(start_cube, goal_cube, max_depth):
 def main(number_of_random_moves, max_depth):
     # Initialize the cubes
     solved_cube = RubiksCube()
-    start_cube = RubiksCube()
+    start_cube = RubiksCube()    
 
     # Randomize the start state
     for _ in range(number_of_random_moves):
@@ -151,8 +181,8 @@ def main(number_of_random_moves, max_depth):
                     start_cube.rotate_z])
         move(random.randint(0, 2), random.choice([True, False]))
 
-    print(f"Start state: {start_cube.state}")
-
+    # Solve the cube
+    print("starting to explore the state space pls wait, restart with fewer random moves if it takes too long")
     state_graph = expand_cube_states_A_star(solved_cube, start_cube, max_depth)
     print(f"Number of nodes: {state_graph.number_of_nodes()}")
     print(f"Number of edges: {state_graph.number_of_edges()}")
@@ -186,6 +216,6 @@ def main(number_of_random_moves, max_depth):
 
 if __name__ == "__main__":
     """Run the main function with the number of random moves and max depth desired."""
-    number_of_random_moves = 5
+    number_of_random_moves = 3
     max_depth = 5
     main(number_of_random_moves, max_depth)
